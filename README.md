@@ -39,6 +39,14 @@
 
 ## What's New
 
+- 01/17/2026 (Version 6.12)
+
+   - Add Justify align supporting.
+   - New FullWidth property.
+   
+<details>
+  <summary>Click here to view the entire changelog</summary>
+
 - 11/22/2025 (Version 6.11)
 
    - Fixed Delphi 10.3 and below compiling (TImageList.IsScaled only available in Delphi 10.4)
@@ -46,9 +54,6 @@
 - 11/22/2025 (Version 6.10)
 
    - Fixed Lazarus compiling (TImageList.IsScaled only available in Delphi)
-
-<details>
-  <summary>Click here to view the entire changelog</summary>
 
 - 08/16/2025 (Version 6.9)
 
@@ -448,6 +453,7 @@ This visual component allows you to specify a formatted text in a label, using a
     [outcolor={COLOR_VALUE}] --> Color outside the border line
     [align=left|center|right] --> Horizontal overall alignment
     [valign=top|center|bottom] --> Vertival overall alignment
+    [fullwidth] --> Text will fill full div width. Useful when using horizontal aligns <> left.
     [behind] --> When floating, the div will be draw behind the text, otherwise will be draw in the front of the text.
     [holdprops] --> When entering a div, some text properties are reseted. Use "holdprops" param to keep these properties.
       Reseted properties: Offset, Background color, Horizontal and Vertical text alignment, line and paragraph spacing, and Paragraph Indent.
@@ -468,6 +474,7 @@ This visual component allows you to specify a formatted text in a label, using a
 <L></L> - Align Left
 <C></C> - Align Center
 <R></R> - Align Right
+<J></J> - Align Justify
 <IMG:index> - Image from ImageList where 'index' is image index
 <IMGRES:name> - PNG image from Resource where 'name' is the resource name
 <UL></UL> - Unordered list
@@ -551,6 +558,8 @@ If you are using AutoWidth, the text never wraps to a new line unless a line bre
 
 `Font: TFont` = Determines the base font. When no tag is specified on text, this base font is used.
 
+`FullWidth: Boolean` = Text will fill full div width. Useful when using horizontal aligns <> left.
+
 `Images: TCustomImageList` = When using `<img>` tag, you should set this property to specify the ImageList where the images are stored. In FMX environment, this property is only available using Delphi XE8 or higher.
 
 `LineCount: Integer` = Returns the total lines of text, according to the bounds of control. This property is read-only.
@@ -559,7 +568,7 @@ If you are using AutoWidth, the text never wraps to a new line unless a line bre
 
 `LineSpacing: TPixels` = Specify the default line spacing in overall text. You can use `<LS>` tag to determine line spacing at specific lines.
 
-`LineHorzAlign: TDHHorzAlign (haLeft, haCenter, haRight)` = Allows you to specify the horizontal alignment of each element in the line. Default is `haLeft`.
+`LineHorzAlign: TDHHorzAlign (haLeft, haCenter, haRight, haJustify)` = Allows you to specify the horizontal alignment of each element in the line. Default is `haLeft`.
 
 `LineVertAlign: TDHVertAlign (vaTop, vaCenter, vaBottom)` = Allows you to specify the vertical alignment of each element in the line. This property only take effects when the elements have different heights at same line. Default is `vaTop`.
 
@@ -569,7 +578,7 @@ If you are using AutoWidth, the text never wraps to a new line unless a line bre
 
 `Offset: TDHOffset` = Sets Top and Bottom offset (spacing in Pixels) for each line. When using `<offset>` tag, it will replace this setting, according to the specified attribute (top and/or bottom).
 
-`OverallHorzAlign: TDHHorzAlign (haLeft, haCenter, haRight)` = Determines overall text horizontal alignment. This property only take effects if `AutoWidth` is false.
+`OverallHorzAlign: TDHHorzAlign (haLeft, haCenter, haRight, haJustify)` = Determines overall text horizontal alignment. This property only take effects if `AutoWidth` is false. Note: haJustify not available for overall align.
 
 `OverallVertAlign: TDHVertAlign (vaTop, vaCenter, vaBottom)` = Determines overall text vertical alignment. This property only take effects if `AutoHeight` is false.
 

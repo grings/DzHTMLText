@@ -6,3 +6,4 @@ backup/
 **/Win32
 *.rc
 *.dres
+*.dcu

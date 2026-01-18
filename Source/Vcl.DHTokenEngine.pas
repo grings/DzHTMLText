@@ -252,6 +252,10 @@ type
   private
     procedure Process; override;
   end;
+  TDHToken_AlignJustify = class(TDHTokenBlock)
+  private
+    procedure Process; override;
+  end;
 
   TDHToken_VertAlign = class(TDHTokenBlock)
   private
@@ -333,6 +337,7 @@ type
     Size: TAnySize;
     FloatPos: TAnyPoint;
     MaxWidth: TPixels;
+    FullWidth: Boolean;
     HorzAlign: TDHHorzAlign;
     VertAlign: TDHVertAlign;
     WidthType, HeightType: TDHDivSizeType;
@@ -373,6 +378,8 @@ type
 
     AutoWidth, AutoHeight: Boolean;
     MaxWidth: TPixels;
+
+    FullWidth: Boolean;
 
     HorzAlign: TDHHorzAlign;
     VertAlign: TDHVertAlign;
@@ -513,7 +520,7 @@ type
   end;
 
 const
-  TOKENS_OBJECTS: array[0..32] of TDHTokenObjectDef = (
+  TOKENS_OBJECTS: array[0..33] of TDHTokenObjectDef = (
     //single
     (Ident: 'BR'; Clazz: TDHToken_Break; AllowPar: True; OptionalPar: True), //breakable!
     (Ident: 'LINE'; Clazz: TDHToken_Line; AllowPar: True; OptionalPar: True),
@@ -537,6 +544,7 @@ const
     (Ident: 'L'; Clazz: TDHToken_AlignLeft),
     (Ident: 'C'; Clazz: TDHToken_AlignCenter),
     (Ident: 'R'; Clazz: TDHToken_AlignRight),
+    (Ident: 'J'; Clazz: TDHToken_AlignJustify),
     (Ident: 'VALIGN'; Clazz: TDHToken_VertAlign; AllowPar: True),
     (Ident: 'SPOILER'; Clazz: TDHToken_SpoilerTitle; AllowPar: True),
     (Ident: 'SDETAIL'; Clazz: TDHToken_SpoilerDetail; AllowPar: True),
@@ -1056,6 +1064,13 @@ begin
   Props.HorzAlign := haRight;
 end;
 
+{ TDHToken_AlignJustify }
+
+procedure TDHToken_AlignJustify.Process;
+begin
+  Props.HorzAlign := haJustify;
+end;
+
 { TDHToken_VertAlign }
 
 procedure TDHToken_VertAlign.ReadParam;
@@ -1347,6 +1362,7 @@ begin
     FloatPos := TAnyPoint.Create(Lb.CalcScale(P.GetParamAsPixels('x', -1)), Lb.CalcScale(P.GetParamAsPixels('y', -1)));
     Floating := (FloatPos.X>=0) and (FloatPos.Y>=0);
 
+    FullWidth := P.ParamExists('fullwidth');
     HorzAlign := ParamToHorzAlign(P.GetParam('align'));
     VertAlign := ParamToVertAlign(P.GetParam('valign'));
     MaxWidth := Lb.CalcScale(P.GetParamAsPixels('maxwidth', 0));
@@ -1401,6 +1417,7 @@ begin
   D.AutoWidth := WidthType=TDHDivSizeType.Auto;
   D.AutoHeight := (HeightType=TDHDivSizeType.Auto) or (HeightType=TDHDivSizeType.Line);
   D.MaxWidth := MaxWidth;
+  D.FullWidth := FullWidth;
   D.Borders := Borders;
   D.VertAlign := VertAlign;
   D.HorzAlign := HorzAlign;
@@ -1560,6 +1577,8 @@ begin
   end;
 
   TextSize := TAnySize.Create(W, H);
+
+  if FullWidth then TextSize.Width := GetAreaSizeWOB.Width;
 end;
 
 function TDHDivArea.GetParagraphCount: Integer;
@@ -1698,6 +1717,7 @@ begin
   MainDiv.AutoHeight := Lb.AutoHeight;
 
   MainDiv.MaxWidth := Lb.CalcScale(Lb.MaxWidth);
+  MainDiv.FullWidth := Lb.FullWidth;
 
   MainDiv.FixedSize := TAnySize.Create(Lb.Width, Lb.Height); //control size is auto scaled
 
@@ -2194,8 +2214,15 @@ var
   end;
 
 var
+  I: Integer;
   Line: TDHDivAreaLine;
   WrPlainText: Boolean;
+
+  //--Justify
+  QtdSpaces: Integer;
+  SpaceToAdjust, IncreaseSpaceW, Offset, OverallOffset: TPixels;
+  {$IFDEF VCL}MissingIncrease: Integer;{$ENDIF}
+  //--
 begin
   PDiv := DivArea.GetAbsoluteStartingPos;
 
@@ -2203,10 +2230,53 @@ begin
 
   WrPlainText := Lb.GeneratePlainText and (DivArea = MainDiv);
 
-  for Line in DivArea.Lines do
+  for I := 0 to DivArea.Lines.Count-1 do
   begin
+    Line := DivArea.Lines[I];
+
+    //--Justify
+    IncreaseSpaceW := 0; //just for suppress warning
+    {$IFDEF VCL}MissingIncrease := 0;{$ENDIF} //just for suppress warning
+
+    QtdSpaces := 0;
+    if (Line.Items.Count>0) and (Line.Items[0].HorzAlign = haJustify)
+      and (I<>DivArea.Lines.Count-1)
+      and DivArea.Lines[I+1].Continuous then
+    begin
+      for Item in Line.Items do
+        if Item.IsSpace then Inc(QtdSpaces);
+
+      if QtdSpaces>0 then
+      begin
+        SpaceToAdjust := DivArea.TextSize.Width - Line.TextSize.Width;
+        IncreaseSpaceW := {$IFDEF VCL}Trunc{$ENDIF}(SpaceToAdjust / QtdSpaces);
+        {$IFDEF VCL}MissingIncrease := SpaceToAdjust - (IncreaseSpaceW * QtdSpaces);{$ENDIF}
+
+        Line.TextSize.Width := Line.TextSize.Width + SpaceToAdjust;
+      end;
+    end;
+
+    OverallOffset := 0;
+    //--
     for Item in Line.Items do
     begin
+      //--Justify
+      Item.Position.Offset(OverallOffset, 0);
+      if Item.IsSpace and (QtdSpaces>0) then
+      begin
+        Offset := IncreaseSpaceW;
+        {$IFDEF VCL}
+        if MissingIncrease>0 then
+        begin
+          Inc(Offset);
+          Dec(MissingIncrease);
+        end;
+        {$ENDIF}
+        Item.Size.Width := Item.Size.Width + Offset;
+        OverallOffset := OverallOffset + Offset;
+      end;
+      //--
+
       if (Item.SelfDiv<>nil) and Item.SelfDiv.HeightByLine then
       begin
         Item.Size.Height := Line.TextSize.Height - Item.Offset.GetHeight; //size of div rectangle
@@ -2271,7 +2341,7 @@ type
     P: TAnyPoint;
     Offset: TPixels;
   begin
-    if Prop>0 then //center or right
+    if (Prop=1) or (Prop=2) then //center or right
     begin
       case FnIndex of
         0: R := FuncAlignHorz;

@@ -303,7 +303,7 @@ type
   TDHEvLinkClick = procedure(Sender: TObject; Link: TDHBaseLink; var Handled: Boolean) of object;
 
   TDHVertAlign = (vaTop, vaCenter, vaBottom);
-  TDHHorzAlign = (haLeft, haCenter, haRight);
+  TDHHorzAlign = (haLeft, haCenter, haRight, haJustify);
 
   TDHEvRetrieveImgRes = procedure(Sender: TObject; const ResourceName: string; Picture: TAnyPicture; var Handled: Boolean) of object;
 
@@ -357,6 +357,8 @@ type
     {$ENDIF}
 
     FOnRetrieveImgRes: TDHEvRetrieveImgRes;
+
+    FFullWidth: Boolean;
 
     FLineVertAlign: TDHVertAlign;
     FLineHorzAlign: TDHHorzAlign;
@@ -434,6 +436,8 @@ type
     procedure SetParagraphSpacing(const Value: TPixels);
     procedure SetParagraphIndent(const Value: TPixels);
     procedure SetCustomStyles(const Value: TDHCustomStyles);
+
+    procedure SetFullWidth(const Value: Boolean);
 
     procedure SetRightToLeftText(const Value: Boolean);
 
@@ -648,6 +652,8 @@ type
     property ParagraphSpacing: TPixels read FParagraphSpacing write SetParagraphSpacing {$IFDEF VCL}default 0{$ENDIF};
     property ParagraphIndent: TPixels read FParagraphIndent write SetParagraphIndent {$IFDEF VCL}default 0{$ENDIF};
 
+    property FullWidth: Boolean read FFullWidth write SetFullWidth default False;
+
     property RightToLeftText: Boolean read FRightToLeftText write SetRightToLeftText default False;
 
     property About: string read FAbout;
@@ -691,7 +697,7 @@ uses
   , Winapi.GDIPOBJ, Winapi.GDIPAPI
 {$ENDIF};
 
-const STR_VERSION = '6.11';
+const STR_VERSION = '6.12';
 
 const DEFAULT_PPI = 96;
 
@@ -1057,6 +1063,8 @@ end;
 
 procedure TDzHTMLText.SetOverallHorzAlign(const Value: TDHHorzAlign);
 begin
+  if Value = haJustify then raise Exception.Create('Can not use Justify in overall align');
+
   if Value<>FOverallHorzAlign then
   begin
     FOverallHorzAlign := Value;
@@ -1090,6 +1098,16 @@ begin
   if Value<>FParagraphIndent then
   begin
     FParagraphIndent := Value;
+
+    BuildAndPaint;
+  end;
+end;
+
+procedure TDzHTMLText.SetFullWidth(const Value: Boolean);
+begin
+  if Value<>FFullWidth then
+  begin
+    FFullWidth := Value;
 
     BuildAndPaint;
   end;
@@ -1248,7 +1266,7 @@ end;
 function TDzHTMLText.GetRealColor(Color: TAnyColor): TAnyColor;
 begin
   {$IF Defined(DCC) and Defined(VCL)}
-  if (Color<>clNone) and (seFont in StyleElements) {and not (csDesigning in ComponentState)} then
+  if (Color<>clNone) and (seFont in StyleElements) then
     Result := StyleServices.GetSystemColor(Color)
   else
   {$ENDIF}
